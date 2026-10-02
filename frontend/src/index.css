@@ -1,0 +1,220 @@
+@import 'tailwindcss';
+
+/* Class-based dark mode: `.dark` on <html> is set by public/theme-init.js and src/stores/theme.ts. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* -----------------------------------------------------------------------------
+ * Design tokens
+ *
+ * Every colour in the UI comes from these variables. Components never use raw
+ * palette colours — Tailwind's default palette is removed below so they can't.
+ * Profit/loss pairs were checked for colour-vision-deficiency separation, and
+ * text tokens for WCAG AA contrast on their surfaces. P&L is always paired
+ * with a +/− sign and an icon, never colour alone.
+ * -------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+
+  --background: #f6f7f9;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-muted: #f0f2f5;
+  --border: #e3e6eb;
+  --border-strong: #cfd4dc;
+
+  --text: #0f1218;
+  --text-muted: #5b6372;
+  --text-subtle: #6b7382;
+
+  --accent: #2563eb;
+  --accent-solid: #2563eb;
+  --accent-solid-hover: #1d4fd7;
+  --on-accent: #ffffff;
+
+  --profit: #0b7d55;
+  --loss: #d4343a;
+  --loss-solid: #d4343a;
+  --loss-solid-hover: #b92a30;
+  --warning: #b45309;
+
+  --overlay: rgb(15 18 24 / 0.36);
+  --card-shadow: 0 1px 2px rgb(16 24 40 / 0.04);
+  --overlay-shadow: 0 24px 48px -12px rgb(16 24 40 / 0.22), 0 4px 12px -4px rgb(16 24 40 / 0.08);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --background: #0a0b0e;
+  --surface: #111318;
+  --surface-raised: #171a20;
+  --surface-muted: #1c1f26;
+  --border: #22252d;
+  --border-strong: #31353f;
+
+  --text: #ecedf0;
+  --text-muted: #9097a3;
+  --text-subtle: #7d8492;
+
+  --accent: #5b95ff;
+  --accent-solid: #2f6fed;
+  --accent-solid-hover: #3d7bf5;
+  --on-accent: #ffffff;
+
+  --profit: #3ddc97;
+  --loss: #ef5350;
+  --loss-solid: #d4343a;
+  --loss-solid-hover: #e03e44;
+  --warning: #f2b33d;
+
+  --overlay: rgb(0 0 0 / 0.62);
+  --card-shadow: 0 0 0 transparent;
+  --overlay-shadow: 0 24px 64px -16px rgb(0 0 0 / 0.8);
+}
+
+@theme {
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  --font-sans:
+    'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --animate-fade-in: fade-in 160ms ease-out;
+  --animate-dialog-in: dialog-in 200ms var(--ease-out-expo);
+  --animate-drawer-in: drawer-in 240ms var(--ease-out-expo);
+  --animate-tooltip-in: fade-in 120ms ease-out;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.98);
+    }
+  }
+  @keyframes drawer-in {
+    from {
+      transform: translateX(-100%);
+    }
+  }
+}
+
+/* Map tokens to Tailwind utilities: bg-surface, text-fg-muted, border-border, text-profit … */
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-fg: var(--text);
+  --color-fg-muted: var(--text-muted);
+  --color-fg-subtle: var(--text-subtle);
+
+  --color-accent: var(--accent);
+  --color-accent-solid: var(--accent-solid);
+  --color-accent-solid-hover: var(--accent-solid-hover);
+  --color-on-accent: var(--on-accent);
+
+  --color-profit: var(--profit);
+  --color-success: var(--profit);
+  --color-loss: var(--loss);
+  --color-danger: var(--loss);
+  --color-loss-solid: var(--loss-solid);
+  --color-loss-solid-hover: var(--loss-solid-hover);
+  --color-warning: var(--warning);
+
+  --color-overlay: var(--overlay);
+
+  --shadow-card: var(--card-shadow);
+  --shadow-overlay: var(--overlay-shadow);
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--text);
+  }
+
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--accent) 28%, transparent);
+  }
+
+  /* One consistent, highly visible focus ring for every keyboard-focusable element. */
+  :where(:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+/* Figures: monospaced, tabular, slashed zero — for prices, sizes and table numbers. */
+@utility numeric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  letter-spacing: -0.01em;
+}
+
+/* Loading placeholder with a soft sweep (static under reduced motion). */
+@utility skeleton {
+  background-color: var(--surface-muted);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--text) 5%, transparent) 50%,
+    transparent 100%
+  );
+  background-size: 50% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-sweep 1.8s ease-in-out infinite;
+}
+
+@keyframes skeleton-sweep {
+  from {
+    background-position: -100% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
