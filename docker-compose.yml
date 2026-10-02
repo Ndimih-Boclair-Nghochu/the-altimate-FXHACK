@@ -1,0 +1,28 @@
+# Local deployment: backend API + dashboard.
+# Ports bind to 127.0.0.1 only. For remote access put a TLS reverse proxy in front
+# (see docs/SECURITY.md) rather than exposing these ports.
+services:
+  backend:
+    build: ./backend
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      FXBOT_API_HOST: 0.0.0.0
+      FXBOT_DATABASE_URL: sqlite+aiosqlite:////app/data/fxbot.db
+    volumes:
+      - fxbot-data:/app/data
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
+
+volumes:
+  fxbot-data:
