@@ -25,7 +25,9 @@ An algorithmic forex trading system that:
 
 1. **Safety first.** The default mode is `paper`. Next is `practice` (OANDA demo). `live`
    requires `ALLOW_LIVE_TRADING=true` in the environment *and* an explicit confirmation in
-   config. The kill switch flattens positions and halts new orders.
+   config. `FXBOT_LIVE_CONFIRM_ACCOUNT_ID` must equal the configured live account id, and a
+   live session starts with new entries paused until the operator resumes them. The kill
+   switch flattens positions and halts new orders.
 2. **Honesty.** No guaranteed profits, ever. Every performance number comes from a
    reproducible backtest or the trade journal. Never fabricate results.
 3. **No lookahead bias.** Signals use only data available at decision time (closed bars).
@@ -37,10 +39,10 @@ An algorithmic forex trading system that:
 
 | Layer | Choice |
 |---|---|
-| Backend | Python 3.11+, uv, FastAPI, Pydantic v2, pydantic-settings, SQLAlchemy 2 (async) + SQLite (Postgres-ready via `DATABASE_URL`), httpx, numpy, pandas, scikit-learn, structlog |
+| Backend | Python 3.11+, uv, FastAPI, Pydantic v2, pydantic-settings, SQLAlchemy 2 (async) + SQLite (Postgres-ready via `FXBOT_DATABASE_URL`), Alembic migrations (from stage 5), httpx, numpy, pandas, scikit-learn, structlog |
 | Backend quality | pytest, pytest-asyncio, respx, ruff (lint + format), mypy |
 | Frontend | React + TypeScript (strict) + Vite + Tailwind CSS + TanStack Query + Zustand + React Router + lightweight-charts + lucide-react |
-| Frontend quality | ESLint, Prettier, Vitest + Testing Library |
+| Frontend quality | ESLint, Prettier, Vitest + Testing Library, API types generated from the backend OpenAPI schema (`openapi-typescript`) |
 | Infra | Docker Compose, GitHub Actions CI |
 
 ## Repository layout
@@ -60,7 +62,7 @@ backend/
     risk/              sizing, stops, limits, exposure, kill switch
     learning/          features, labeling, meta-model, bandit allocator, drift, model registry
     backtest/          event-driven backtester, metrics, walk-forward
-    engine/            live orchestrator, order manager, reconciliation
+    engine/            decision pipeline + order manager (stage 2), live orchestrator, reconciliation (stage 5)
     persistence/       SQLAlchemy models + repositories
     api/               FastAPI app, routers, WebSocket, auth
   tests/               mirrors src layout
@@ -71,6 +73,7 @@ docs/
   ARCHITECTURE.md      components, data flow, interfaces (PM)
   STATUS.md            stage tracker (PM)
   SECURITY.md          threat model + requirements (Security)
+  RUNBOOK.md           operating guide (stage 7)
   research/            research reports (Research)
   adr/                 architecture decision records
 .github/workflows/ci.yml
@@ -83,7 +86,7 @@ docker-compose.yml
 |---|---|---|
 | 0 | Foundation: research, roadmap, architecture, threat model, scaffolding, CI | all |
 | 1 | Broker connectivity & market data (OANDA v20, paper broker, candle store) | backend |
-| 2 | Indicators, regime detection, strategies, backtester | backend |
+| 2 | Indicators, regime detection, strategies, backtester, shared decision pipeline | backend |
 | 3 | Risk management engine | backend |
 | 4 | Adaptive learning system | backend |
 | 5 | Live trading engine + REST/WebSocket API + auth | backend |
