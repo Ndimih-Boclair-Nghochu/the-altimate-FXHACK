@@ -4,7 +4,7 @@
 !.env.example
 
 # Runtime data (SQLite database, downloaded candles, model artifacts)
-data/
+/data/
 
 # Python / tooling
 .venv/
@@ -17,6 +17,6 @@ __pycache__/
 .coverage.*
 htmlcov/
 coverage.xml
-dist/
-build/
+/dist/
+/build/
 *.egg-info/
