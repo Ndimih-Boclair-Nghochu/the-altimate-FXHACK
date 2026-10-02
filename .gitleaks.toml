@@ -1,0 +1,97 @@
+# Gitleaks configuration for Altimate FX.
+#
+# Extends the upstream default ruleset and adds rules for the secrets this
+# project actually holds: the OANDA token, the OANDA account id and the
+# dashboard password hash. See docs/SECURITY.md (SR-2) and
+# docs/security/review-checklist.md.
+#
+# Requires gitleaks >= 8.25.0 (uses [[allowlists]]); CI pins 8.30.1.
+#
+# Local usage (from the repo root):
+#   gitleaks git --redact -v .     # scan committed history (what CI does)
+#   gitleaks dir --redact -v .     # scan the working tree; this WILL flag your
+#                                  # local, git-ignored .env, which is expected
+#
+# Canonical fake credentials. Tests and docs may use these anywhere; anything
+# else shaped like a token or account id is a finding:
+#   token:      0123456789abcdef0123456789abcdef-fedcba9876543210fedcba9876543210
+#               00000000000000000000000000000000-00000000000000000000000000000000
+#   account id: 101-004-1234567-001, 101-001-0000000-001 (any NNN-NNN-<zeros|1234567..>-NNN)
+
+title = "Altimate FX gitleaks config"
+minVersion = "v8.25.0"
+
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# Project-specific rules
+# ---------------------------------------------------------------------------
+
+[[rules]]
+id = "oanda-v20-token"
+description = "OANDA v20 personal access token (32 hex, hyphen, 32 hex)"
+regex = '''\b([a-f0-9]{32}-[a-f0-9]{32})\b'''
+secretGroup = 1
+entropy = 3.0
+
+[[rules]]
+id = "oanda-token-assignment"
+description = "Value assigned to an OANDA token/key/secret variable (e.g. FXBOT_OANDA_API_TOKEN=...)"
+# No leading \b: in FXBOT_OANDA_API_TOKEN the "_" before OANDA is a word char.
+regex = '''(?i)oanda[a-z0-9_.-]{0,24}(?:token|key|secret)\b[\s'"]{0,3}(?:=|:|:=|=>)[\s'"]{0,5}([a-z0-9][a-z0-9-]{19,})'''
+secretGroup = 1
+entropy = 3.0
+keywords = ["oanda"]
+
+[[rules]]
+id = "oanda-account-id"
+description = "OANDA v20 account id (not a credential on its own, but must not be published)"
+regex = '''\b(\d{3}-\d{3}-\d{5,9}-\d{3})\b'''
+secretGroup = 1
+
+  [[rules.allowlists]]
+  description = "obvious placeholder account ids"
+  regexTarget = "secret"
+  regexes = [
+    '''^\d{3}-\d{3}-(?:0{5,9}|1234567|12345678|123456789)-\d{3}$''',
+  ]
+
+[[rules]]
+id = "password-hash"
+description = "argon2 / bcrypt password hash (allows offline brute force if published)"
+regex = '''(\$argon2(?:id|i|d)\$v=\d+\$m=\d+,t=\d+,p=\d+\$[A-Za-z0-9+/]{16,}\$[A-Za-z0-9+/]{16,}|\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53})'''
+secretGroup = 1
+keywords = ["$argon2", "$2a$", "$2b$", "$2y$"]
+
+# ---------------------------------------------------------------------------
+# Global allowlist (applies to the default rules and the project rules)
+# ---------------------------------------------------------------------------
+# Trade-off: fixtures are allowlisted so tests can carry fake credentials of
+# any shape. Recorded broker responses are also the most likely place for a
+# REAL token or account id to slip in, so CI separately greps
+# backend/tests/fixtures/ for token- and account-shaped strings other than the
+# canonical fakes above (docs/security/ci-security-job.md, step "fixture guard").
+
+[[allowlists]]
+description = "canonical fake OANDA tokens (any rule, any file)"
+regexTarget = "secret"
+regexes = [
+  '''^0123456789abcdef0123456789abcdef-fedcba9876543210fedcba9876543210$''',
+  '''^0{32}-0{32}$''',
+]
+
+[[allowlists]]
+description = "test fixtures and *.example templates"
+paths = [
+  '''(?:^|/)backend/tests/fixtures/''',
+  '''(?:^|/)[^/]*\.example(?:\.[A-Za-z0-9]+)?$''',
+]
+
+[[allowlists]]
+description = "local tool caches and virtualenvs (git-ignored; keeps `gitleaks dir` usable)"
+paths = [
+  '''(?:^|/)\.venv/''',
+  '''(?:^|/)\.(?:mypy|ruff|pytest)_cache/''',
+  '''(?:^|/)__pycache__/''',
+]

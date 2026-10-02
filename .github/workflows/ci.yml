@@ -4,6 +4,9 @@ on:
   push:
     branches: [main, "claude/**"]
   pull_request:
+  schedule:
+    - cron: "17 4 * * 1" # weekly: new advisories appear without code changes
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,16 +15,20 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Actions are pinned to commit SHAs (docs/SECURITY.md, SR-47). Update by re-resolving the tag.
 jobs:
   backend:
     name: Backend (lint, types, tests)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
@@ -38,3 +45,62 @@ jobs:
       - name: Pytest
         run: uv run pytest --cov=fxbot --cov-report=term-missing
 
+  security:
+    name: Security (secrets, dependency audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read # gitleaks-action lists the PR's commits
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # gitleaks scans commit history
+          persist-credentials: false
+
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # .gitleaks.toml needs >= 8.25 ([[allowlists]]); the action's built-in default is older.
+          GITLEAKS_VERSION: "8.30.1"
+          GITLEAKS_CONFIG: .gitleaks.toml
+          GITLEAKS_ENABLE_COMMENTS: "false"
+
+      - name: Fixture guard (only canonical fake credentials in test fixtures)
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir=backend/tests/fixtures
+          if [ ! -d "$dir" ]; then echo "no $dir yet; skipping"; exit 0; fi
+          fake='0123456789abcdef0123456789abcdef-fedcba9876543210fedcba9876543210|0{32}-0{32}|[0-9]{3}-[0-9]{3}-(0{5,9}|1234567|12345678|123456789)-[0-9]{3}'
+          hits=$(grep -rEnoI '\b[0-9a-fA-F]{32}-[0-9a-fA-F]{32}\b|\b[0-9]{3}-[0-9]{3}-[0-9]{5,9}-[0-9]{3}\b|[Bb]earer +[A-Za-z0-9._~+/-]{8,}' "$dir" \
+            | grep -vE ":([Bb]earer +)?(${fake})\$" || true)
+          if [ -n "$hits" ]; then
+            echo "::error::Non-canonical token/account-shaped values in $dir (values hidden). Replace them with the fakes listed in .gitleaks.toml."
+            printf '%s\n' "$hits" | cut -d: -f1,2 | sort -u
+            exit 1
+          fi
+          echo "fixture guard: ok"
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: false
+
+      - name: Python dependency audit (pip-audit on uv.lock)
+        working-directory: backend
+        run: |
+          uv export --frozen --all-groups --all-extras --no-emit-project \
+            --format requirements-txt -o "$RUNNER_TEMP/requirements-audit.txt"
+          uvx pip-audit==2.10.1 -r "$RUNNER_TEMP/requirements-audit.txt" \
+            --require-hashes --disable-pip --strict --progress-spinner off
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: npm dependency audit
+        if: hashFiles('frontend/package-lock.json') != ''
+        working-directory: frontend
+        run: npm audit --audit-level=high

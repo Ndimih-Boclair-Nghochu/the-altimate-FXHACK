@@ -459,8 +459,9 @@ DataTable, StatCard, EquityChart, Meter), `pages/` below, `routes.tsx`.
 - [ ] `pages/Overview/Overview.test.tsx`: a WS `positions` event updates the table without refetch.
 - [ ] `pages/Trades/Trades.test.tsx`: filters round-trip through the URL; detail view renders
       the full decision timeline.
-- [ ] `pages/Risk/Risk.test.tsx`: kill switch requires a confirmation dialog with typed
-      confirmation; release likewise; buttons disabled while the request is in flight.
+- [ ] `pages/Risk/Risk.test.tsx`: kill switch engages in at most two clicks (button + confirm,
+      no typing, per SR-40); release requires typed confirmation; buttons disabled while the
+      request is in flight.
 - [ ] `pages/Settings/Settings.test.tsx`: no input exists for any secret; mode is not editable;
       out-of-range risk value shows the server's 422 message.
 - [ ] `pages/Backtests/Backtests.test.tsx`: results show data source, seed and cost model.
