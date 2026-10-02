@@ -14,12 +14,14 @@ detailed reports.
 | 05 | [Adaptive learning](05-adaptive-learning.md) | Label every signal from market data. Meta-model can only shrink. Clamped discounted Thompson sampling. Drift detection is slow. |
 | 06 | [Backtesting pitfalls](06-backtesting-pitfalls.md) | Bid/ask fills, same-bar ambiguity, cost stress, DSR/PBO, promotion gates, acceptance checklist. |
 | 07 | [Data sources](07-data-sources.md) | OANDA `price=BA` for research. Pinned GitHub datasets for offline validation. Synthetic data in CI. |
+| 08 | [MetaTrader 5](08-metatrader5.md) | The user's live path (Cameroon, Stage 1b). Python API reference, Windows-VPS + localhost bridge deployment, broker shortlist with caveats, design implications. |
 
 ---
 
 ## 1. Decisions
 
 1. **Brokers.**
+   - **Update:** the user is in Cameroon and trades on **MetaTrader 5**, so the **MT5 adapter (Stage 1b) is the production path** (`08`). OANDA v20 stays the reference adapter for development and offline tests.
    - Build OANDA v20 as the primary adapter, with our own thin `httpx` client (no unmaintained SDK) and pydantic models that ignore unknown fields.
    - Design the `Broker` protocol so a **cTrader Open API** adapter (JSON over WebSocket, port 5036) can be added next, followed by an optional MT5 bridge.
    - Do not use FXCM: `fxcmpy` was removed from PyPI and ForexConnect has no Python ≥ 3.8 Linux wheels.
@@ -114,6 +116,32 @@ detailed reports.
     - add a `NEUTRAL` value for the in-between state instead of overloading `UNDEFINED` (which means warm-up).
     The allocator can key its cells by (regime, vol bucket) internally.
 
+## 3b. MetaTrader 5 update (after the user's answer: Cameroon + MT5)
+
+Details and sources in [`08-metatrader5.md`](08-metatrader5.md).
+
+1. **Deployment:** one **Windows VPS** near the broker's servers runs the MT5 terminal, a minimal **mt5-bridge** (Windows Python, owns the `MetaTrader5` module, single worker thread, allow-listed HTTP API on **127.0.0.1 only**, bearer token, idempotency store), and our backend **natively on Windows** (no Docker).
+   - The user's PC in Cameroon is only a browser. This keeps the grid's documented outages out of the trading path.
+   - Do not use the Wine/RPyC images for live: `mt5linux` uses RPyC classic mode (remote code execution) and common images publish it unauthenticated on `0.0.0.0`.
+   - MQL5's own VPS cannot run Python.
+   - MetaApi requires handing over the master password.
+2. **Brokers (opinion, verify first):**
+   - **Exness** (Mobile Money reported for Cameroon, Seychelles entity);
+   - **IC Markets or Pepperstone** (raw-spread MT5, offshore entity, no confirmed Mobile Money);
+   - **HFM** as an alternative.
+   - All serve Cameroon via **offshore** entities. COSUMAF does not license them, and BEAC transfer rules apply to funding.
+   - The user follows the verification checklist in `08` §C.5 (regulator register, demo specs, small deposit → withdrawal test).
+3. **Design rules the backend must honour:**
+   - Treat all MT5 timestamps as **broker server clock** (detect the rule, usually New York + 7 h).
+   - Build H4/D1 ourselves from H1 in UTC.
+   - Ask = bid + `max(bar min-spread, spread profile)`. Plain bid + bar spread under-states the ask high by a median of 0.3–0.5 pip, p99 2.5–3.4 pips in our check.
+   - **Require a hedging account** (`margin_mode = 2`), and always send the `position` ticket when closing or modifying.
+   - Idempotency via `magic` + a ≤ 25-char hashed `comment`, with reconcile-before-retry on ambiguous retcodes (10012/10031/10011/`None`).
+   - Server-side SL/TP plus our own SL moves via `TRADE_ACTION_SLTP` (MT5's trailing stop is client-side).
+   - Symbol mapping by `currency_base/profit` + `trade_calc_mode`.
+   - A faithful fake `MetaTrader5` module for Linux CI.
+4. **New risk default: minimum equity.** MT5's 0.01-lot step (1,000 units) means the H4 trend trade on EUR/USD (≈ 60-pip stop) risks at least USD 6. That needs **≥ USD 1,200 at 0.5% risk and ≥ USD 2,400 at 0.25%**. The risk engine must compute this from live symbol specs, skip trades it cannot size, and show it on the dashboard.
+
 ## 4. Honest expectations
 
 ### 4.1 What happens to retail FX/CFD traders (evidence)
@@ -147,8 +175,8 @@ detailed reports.
 | Phase | Purpose | Exit criteria (default) |
 |---|---|---|
 | **Paper** (local simulator) | Find bugs where they cost nothing: lookahead, sizing, netting, reconnects, breakers | ≥ 4 weeks running. Replaying the same bars through the backtester reproduces every paper trade exactly. All breakers and the kill switch exercised by fault-injection tests |
-| **Practice** (OANDA demo) | Real API, real quotes, real rejects (`MARKET_HALTED`, precision), real reconciliation | ≥ 3 months and ≥ 30 trades. Zero unprotected positions. Zero unresolved reconciliation diffs. Median fill vs modeled price within 0.3 pip. Cost model within tolerance. **Profit is not an exit criterion**: 3 months is statistically meaningless |
-| **Small live** | Real fills, real financing, real psychology | 0.25% risk/trade, ≤ 3 positions, capital the user can afford to lose entirely. Scale up only after ≥ 100 live trades with results inside the backtest's Monte-Carlo bands and no operational incidents. Live mode requires `ALLOW_LIVE_TRADING=true` and an explicit config confirmation (brief principle 1) |
+| **Practice** (MT5 demo at the chosen broker, or OANDA practice) | Real API, real quotes, real rejects (MT5 retcodes such as 10018/10030/10016, OANDA `MARKET_HALTED`), real reconciliation, server-time detection | ≥ 3 months and ≥ 30 trades. Zero unprotected positions. Zero unresolved reconciliation diffs. Median fill vs modeled price within 0.3 pip. Cost model within tolerance. **Profit is not an exit criterion**: 3 months is statistically meaningless |
+| **Small live** | Real fills, real financing, real psychology | 0.25% risk/trade, ≤ 3 positions, capital the user can afford to lose entirely. On MT5 the 0.01-lot step means roughly ≥ USD 2,400 is needed for the H4 trend strategy at 0.25% (`08` §D.8); with less, the system will (correctly) skip most trades. Scale up only after ≥ 100 live trades with results inside the backtest's Monte-Carlo bands and no operational incidents. Live mode requires `ALLOW_LIVE_TRADING=true` and an explicit config confirmation (brief principle 1) |
 
 Reasons:
 

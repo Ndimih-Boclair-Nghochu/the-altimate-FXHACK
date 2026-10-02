@@ -88,7 +88,7 @@ Commit `fbd29b3c…` (2022-08-26). Repo: https://github.com/ejtraderLabs/histori
 - **Format:** header `Date,open,high,low,close,tick_volume`. Date `YYYY-MM-DD HH:MM:SS`.
 - **Prices are scaled integers stored as floats with noise:** EUR/USD × 100,000 (`127801.00000000001` = 1.27801), USD/JPY × 1,000 (`81121.0` = 81.121). Divide and round to the instrument precision on load.
 - **Price side:** single OHLC, presumably **bid** (MT5 bars are built from bid). There is no ask, so a spread model is required (we used 1.3/1.6/1.4 pips for EUR/USD, GBP/USD, USD/JPY).
-- **Time zone: broker server time** (no Sunday bars, Monday 00:00 → Friday 23:00). This is consistent with the common MT5 "EET with US-DST" server clock, i.e. 00:00 server = 17:00 New York. The exact broker is unknown. We converted with `Europe/Athens` as an approximation (EU and US DST dates differ by 1–3 weeks per year, so session timing can be off by an hour in those weeks).
+- **Time zone: broker server time = New York time + 7 h** (UTC+2 in winter, UTC+3 in summer, following **US** DST). Verified [OURS, `08` §A.10]: the first bar of the week is Monday 00:00 in 482 of 485 weeks, including the March weeks when US and EU DST dates differ. So 00:00 server = 17:00 New York. The exact broker is unknown. The sanity checks in `03` §4 converted with `Europe/Athens` (EU DST), which is off by one hour for 1–3 weeks per year. Use the rule below instead.
 - **Coverage:** H1 EUR/USD 2012-11-16 → 2022-03-04. GBP/USD and USD/JPY start the same day (05:00 / 12:00) and end 2022-03-04 23:00. M15 EUR/USD 2012-11-14 → 2022-03-04.
 - **Unsmoothed:** weekend gaps are present. EUR/USD |gap| median 5.8 pips, p95 35.6, max 178 (2017-04-24). USD/JPY median 7.6, p95 44.3, max 151.
 
@@ -120,8 +120,9 @@ def load_ejtrader(path: Path, scale: int, precision: int) -> pd.DataFrame:
     df = pd.read_csv(path, parse_dates=["Date"])
     for c in ("open", "high", "low", "close"):
         df[c] = (df[c] / scale).round(precision)
-    idx = df["Date"].dt.tz_localize("Europe/Athens", ambiguous="NaT", nonexistent="NaT")
-    df = df[idx.notna()].assign(time=idx[idx.notna()].dt.tz_convert("UTC")).set_index("time")
+    # server clock = America/New_York wall clock + 7 h (see 08 §A.10)
+    ny = (df["Date"] - pd.Timedelta(hours=7)).dt.tz_localize("America/New_York", ambiguous="NaT", nonexistent="NaT")
+    df = df[ny.notna()].assign(time=ny[ny.notna()].dt.tz_convert("UTC")).set_index("time")
     return df.rename(columns=str.lower)                                  # source="ejtrader-mt5", side="bid", smoothed=False
 ```
 

@@ -2,7 +2,20 @@
 
 Status: research input for Stage 1 (broker connectivity) and the broker-agnostic `Broker` protocol.
 
-**Bottom line.**
+> **Update (after the user's answer: Cameroon, MetaTrader 5).** For this user the **live
+> path is MT5** (Stage 1b): a Windows-hosted terminal driven by the official `MetaTrader5`
+> package through a localhost-only bridge. Full reference, deployment, broker shortlist and
+> design implications are in [`08-metatrader5.md`](08-metatrader5.md).
+>
+> The comparison below is unchanged as evidence, but the conclusions shift:
+>
+> - OANDA v20 remains the **reference adapter** (built first, cleanest API, best for offline tests). It is likely not usable live from Cameroon.
+> - **MT5 moves from "possible third adapter" to the user's production adapter.**
+> - cTrader becomes optional (Stage 8).
+>
+> MT5's main costs are Windows-only hosting and 0.01-lot volume steps (minimum-equity constraint, `08` §D.8).
+
+**Bottom line (original analysis, before the user's answer).**
 
 1. **Primary adapter: OANDA v20.** It has the cleanest API for our stack (REST + newline-delimited JSON streaming, Bearer token), free practice accounts with full API access, 1-unit position sizing, stop-loss/take-profit attached on fill, and good recorded fixtures for offline tests.
 2. **Big caveat:** a developer.oanda.com excerpt says the v20 REST API is **not available to OANDA Global Markets (BVI) or OANDA TMS Brokers (EU/Poland) accounts**. OANDA Global Markets is the entity that usually serves clients outside the US, UK, Canada, Australia, Singapore and Japan. Several third-party lists also say OANDA does not onboard residents of Nigeria, South Africa and other countries. A user in Africa may therefore be able to **develop against OANDA practice but not trade live through the OANDA API**.
@@ -51,6 +64,7 @@ Legend: ✅ good / ⚠️ caveat / ❌ poor for our use. "Evidence" columns cite
 ### Why not the others as secondary
 
 - **MT5:** the official package is Windows-only, so on our Linux/Docker stack we would need Wine (`mt5linux`) or a Windows VM with a REST/ZeroMQ bridge, or a paid cloud bridge (e.g. MetaApi). That is fragile and hard to test. Still, MT5 is the most widely available retail platform. Keep it as an optional third adapter behind the same `Broker` protocol, running as a separate "bridge" service on a Windows host.
+  - *Superseded for this user:* MT5 is now the production adapter (Stage 1b). The recommended topology is a Windows VPS running the terminal, a localhost-only authenticated bridge, and our backend natively. The Wine/RPyC route is unsuitable for live use (unauthenticated RPyC classic mode = remote code execution). See `08` §B.
 - **Interactive Brokers:** excellent regulation and broad country coverage (not Nigeria). But (a) the unattended auth story is poor: daily Gateway restarts, a CP Web API that needs daily browser re-auth, and pacing limits; (b) the USD 2 minimum commission makes small trades expensive (for a 5,000-unit EUR/USD trade, USD 2 per side ≈ 4 bps ≈ 0.4 pip per side on top of the spread), and odd lots below USD 25k are handled differently. Good for accounts of roughly USD 25k and up, later.
 - **Saxo:** solid, but 1 order/s and 120 req/min limits, OAuth2 complexity, no official Python SDK, and higher minimum deposits.
 - **FXCM:** `fxcmpy` has been removed from PyPI (the name is now an empty security-holding package), and ForexConnect's Linux wheels stop at Python 3.7. Not viable for Python 3.11+.
@@ -73,20 +87,22 @@ Checklist for the user (put this in the README / setup docs):
    - Leverage caps, negative balance protection, and the financing (swap) schedule.
    - Deposit/withdrawal methods and currency-control rules in your country.
 3. If OANDA live API is unavailable: pick a regulated **cTrader** broker that accepts your country (secondary adapter), or an MT5 broker and use the bridge adapter.
+   - *For the user in Cameroon:* MT5 it is. Broker shortlist, the verification checklist and Cameroon/CEMAC context (COSUMAF, BEAC transfer rules, scam patterns) are in `08` §C.
 4. Check local law: some countries restrict leveraged FX/CFD trading with offshore brokers or capital outflows. This research cannot verify each country's rules.
 
 ## 4. Adapter design implications (for ARCHITECTURE.md)
 
 - The `Broker` protocol must not leak OANDA concepts. Use domain types: `Instrument(symbol="EUR_USD", pip_size, price_precision, units_step, min_units, margin_rate)`, `OrderRequest(side, units, stop_loss_price, take_profit_price, max_slippage, client_id)`, `OrderResult(status=FILLED|CANCELLED|REJECTED|UNKNOWN, ...)`.
 - **Capability flags** per adapter: `supports_sl_on_fill`, `supports_trailing_stop`, `supports_hedging`, `units_step`, `fifo_required` (US accounts), `max_orders_per_second`.
-- **Idempotency key** (`client_id`) is a first-class field. OANDA maps it to `clientExtensions.id` and `tradeClientExtensions.id`. cTrader maps it to `clientOrderId` (max 50 chars) and `label` (max 100) in `ProtoOANewOrderReq`.
+- **Idempotency key** (`client_id`) is a first-class field. OANDA maps it to `clientExtensions.id` and `tradeClientExtensions.id`. cTrader maps it to `clientOrderId` (max 50 chars) and `label` (max 100) in `ProtoOANewOrderReq`. MT5 has no client-order-id field: use `magic` (strategy range) + a short hashed `comment` (≤ 25 chars of the 31 allowed) and reconcile by deal/position search (`08` §D.4).
 - Symbol mapping per adapter (`EUR_USD` ↔ `EURUSD` ↔ broker-suffixed MT5 names).
 - All adapters expose `get_candles(symbol, granularity, start, end, price="BA")` returning **closed bars only**.
 
 ## 5. Things that could change this recommendation
 
 - If OANDA confirms API access for the user's actual entity and country, OANDA can stay the only live adapter for a long time.
-- If the user's only accessible regulated broker is MT5-only, prioritize the MT5 bridge over cTrader.
+- If the user's only accessible regulated broker is MT5-only, prioritize the MT5 bridge over cTrader. **This happened:** the user is in Cameroon and uses MT5 (Stage 1b).
+- MT5's 0.01-lot volume step means our 0.25–0.5% risk per trade needs roughly USD 1,200–2,400+ equity for the H4 trend strategy on EUR/USD (`08` §D.8). For smaller accounts this, not the platform, is the binding constraint.
 - If account size grows beyond roughly USD 25–50k, IBKR becomes cost-competitive and attractive for counterparty safety.
 
 ## 6. Sources
