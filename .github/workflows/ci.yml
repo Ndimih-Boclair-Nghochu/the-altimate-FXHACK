@@ -45,6 +45,29 @@ jobs:
       - name: Pytest
         run: uv run pytest --cov=fxbot --cov-report=term-missing
 
+  # Production runs natively on a Windows VPS next to the MT5 terminal (research 08 §B.3).
+  backend-windows:
+    name: Backend tests (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Set up Python
+        run: uv python install 3.11
+      - name: Install
+        run: uv sync --locked
+      - name: Pytest
+        run: uv run pytest
+
   frontend:
     name: Frontend (lint, types, tests, build)
     runs-on: ubuntu-latest
