@@ -8,9 +8,10 @@ disagrees with this one, this one wins until it is updated.
 An algorithmic forex trading system that:
 
 1. Connects to a real broker through a broker-agnostic interface (with capability flags).
-   The primary adapter is **OANDA v20** (REST + streaming, free practice accounts). OANDA's
-   API is not offered in every country or OANDA division, so a **cTrader Open API** adapter
-   is planned next (stage 8). A built-in **paper broker** simulates fills locally so the
+   The user trades from Cameroon through **MetaTrader 5** (stage 1b), which most brokers
+   serving the region offer, with free demo accounts. **OANDA v20** (REST + streaming) is the
+   reference adapter built first; its API is not offered in every country or OANDA division.
+   A **cTrader Open API** adapter is optional (stage 8). A built-in **paper broker** simulates fills locally so the
    whole system runs without any account.
 2. Runs a **small ensemble of strategies**, gated by **market-regime detection**. Each
    strategy has a mode: `disabled`, `shadow` (signals logged and labelled, no orders) or
@@ -29,9 +30,10 @@ An algorithmic forex trading system that:
 
 ## Non-negotiable principles
 
-1. **Safety first.** The default mode is `paper`. Next is `practice` (OANDA demo). `live`
+1. **Safety first.** The default mode is `paper`. Next is `practice` (MT5 demo or OANDA practice). `live`
    requires `ALLOW_LIVE_TRADING=true` in the environment *and* an explicit confirmation in
-   config. `FXBOT_LIVE_CONFIRM_ACCOUNT_ID` must equal the configured live account id, and a
+   config. `FXBOT_LIVE_CONFIRM_ACCOUNT_ID` must equal the configured live account id (OANDA
+   account id or MT5 login), and a
    live session starts with new entries paused until the operator resumes them. The kill
    switch flattens positions and halts new orders.
 2. **Honesty.** No guaranteed profits, ever. Every performance number comes from a
@@ -95,6 +97,7 @@ docker-compose.yml
 |---|---|---|
 | 0 | Foundation: research, roadmap, architecture, threat model, scaffolding, CI | all |
 | 1 | Broker connectivity & market data (OANDA v20, paper broker, candle store) | backend |
+| 1b | MetaTrader 5 adapter (the user's broker) + optional local bridge | backend |
 | 2 | Indicators, regime detection, strategies, backtester, shared decision pipeline | backend |
 | 3 | Risk management engine | backend |
 | 4 | Adaptive learning system | backend |
@@ -103,7 +106,7 @@ docker-compose.yml
 | 7 | Security hardening, deployment, docs, end-to-end paper run | security + all |
 | 8 | cTrader Open API adapter (second broker) | backend |
 
-Security reviews the work at the end of stages 1, 5, 6 and 7.
+Security reviews the work at the end of stages 1, 1b, 5, 6 and 7.
 Each stage is built, tested (lint, types, tests, build all green), committed and pushed
 before the next one starts.
 
