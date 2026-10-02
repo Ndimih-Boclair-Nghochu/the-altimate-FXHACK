@@ -49,7 +49,7 @@ ENV PATH="/app/.venv/bin:${PATH}" \
     FXBOT_API_HOST=0.0.0.0 \
     FXBOT_API_PORT=8000 \
     FXBOT_LOG_JSON=true \
-    FXBOT_DATABASE_URL=sqlite+aiosqlite:////app/data/fxbot.db
+    FXBOT_DATA_DIR=/app/data
 
 USER fxbot
 

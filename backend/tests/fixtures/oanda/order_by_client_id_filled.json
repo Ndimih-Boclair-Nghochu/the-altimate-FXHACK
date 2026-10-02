@@ -1,0 +1,11 @@
+{
+  "order": {
+    "id": "22", "createTime": "2018-06-27T09:36:12.964984863Z", "state": "FILLED",
+    "type": "MARKET", "instrument": "EUR_USD", "units": "12000", "timeInForce": "FOK",
+    "positionFill": "DEFAULT", "priceBound": "1.16400",
+    "clientExtensions": {"id": "afx-7f3c2a", "tag": "trend_breakout_h4"},
+    "fillingTransactionID": "23", "filledTime": "2018-06-27T09:36:12.964984863Z",
+    "tradeOpenedID": "23"
+  },
+  "lastTransactionID": "24"
+}

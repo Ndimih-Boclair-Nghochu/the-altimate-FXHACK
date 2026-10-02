@@ -1,1 +1,1 @@
-"""Core domain models: instruments, candles, prices, orders, fills, trades, positions."""
+"""Core domain: value types, enums, errors, clock and market calendar."""

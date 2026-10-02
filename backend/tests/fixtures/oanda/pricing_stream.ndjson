@@ -1,0 +1,7 @@
+{"status":"tradeable","asks":[{"price":"114.312","liquidity":1000000}],"closeoutBid":"114.291","bids":[{"price":"114.295","liquidity":1000000}],"instrument":"EUR_JPY","time":"2016-10-27T08:38:43.094548890Z","closeoutAsk":"114.316","type":"PRICE"}
+{"type":"HEARTBEAT","time":"2016-10-27T08:38:44.327443673Z"}
+
+{"type":"SOMETHING_NEW","time":"2016-10-27T08:38:44.500000000Z"}
+this line is not json
+{"status":"tradeable","asks":[],"bids":[],"instrument":"GBP_USD","time":"2016-10-27T08:38:45.000000000Z","type":"PRICE"}
+{"type": "PRICE", "instrument": "EUR_USD", "time": "1514852541.189833163", "status": "tradeable", "tradeable": true, "bids": [{"price": "1.20165", "liquidity": 10000000}], "asks": [{"price": "1.2018", "liquidity": 10000000}], "closeoutBid": "1.2015", "closeoutAsk": "1.20195"}

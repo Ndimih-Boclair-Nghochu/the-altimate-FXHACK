@@ -1,0 +1,16 @@
+{
+  "positions": [
+    {
+      "instrument": "EUR_USD", "pl": "-13554.8000", "resettablePL": "-13554.8000",
+      "unrealizedPL": "870.0000",
+      "long": {"units": "100", "averagePrice": "1.09448", "tradeIDs": ["2313"], "pl": "0.0000", "unrealizedPL": "-0.0933", "resettablePL": "0.0000"},
+      "short": {"units": "0", "pl": "0.0000", "unrealizedPL": "0.0000", "resettablePL": "0.0000"}
+    },
+    {
+      "instrument": "USD_JPY", "pl": "0.0000", "resettablePL": "0.0000", "unrealizedPL": "1.2000",
+      "long": {"units": "0", "pl": "0.0000", "unrealizedPL": "0.0000", "resettablePL": "0.0000"},
+      "short": {"units": "-500", "averagePrice": "104.500", "tradeIDs": ["2318"], "pl": "0.0000", "unrealizedPL": "1.2000", "resettablePL": "0.0000"}
+    }
+  ],
+  "lastTransactionID": "2318"
+}

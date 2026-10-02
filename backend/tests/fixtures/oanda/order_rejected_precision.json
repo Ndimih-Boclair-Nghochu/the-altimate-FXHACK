@@ -1,0 +1,10 @@
+{
+  "orderRejectTransaction": {
+    "type": "MARKET_ORDER_REJECT",
+    "rejectReason": "TAKE_PROFIT_ON_FILL_PRICE_PRECISION_EXCEEDED",
+    "instrument": "EUR_USD", "units": "80000", "timeInForce": "FOK", "positionFill": "DEFAULT",
+    "takeProfitOnFill": {"price": "1.12247999999999", "timeInForce": "GTC"}
+  },
+  "errorCode": "TAKE_PROFIT_ON_FILL_PRICE_PRECISION_EXCEEDED",
+  "errorMessage": "The Take Profit on fill specified contains a price with more precision than is allowed by the Order's instrument"
+}

@@ -1,0 +1,15 @@
+{
+  "lastTransactionID": "65",
+  "orderCancelTransaction": {
+    "accountID": "101-004-1234567-001", "batchID": "64", "id": "65", "orderID": "64",
+    "reason": "MARKET_HALTED", "time": "2017-01-28T13:31:38.732264064Z",
+    "type": "ORDER_CANCEL", "userID": 5120068
+  },
+  "orderCreateTransaction": {
+    "accountID": "101-004-1234567-001", "batchID": "64", "id": "64",
+    "instrument": "EUR_USD", "positionFill": "DEFAULT", "reason": "CLIENT_ORDER",
+    "time": "2017-01-28T13:31:38.732264064Z", "timeInForce": "FOK",
+    "type": "MARKET_ORDER", "units": "12000", "userID": 5120068
+  },
+  "relatedTransactionIDs": ["64", "65"]
+}

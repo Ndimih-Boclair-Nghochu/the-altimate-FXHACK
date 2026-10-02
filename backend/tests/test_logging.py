@@ -130,7 +130,7 @@ def test_json_output_redacts_structlog_events() -> None:
         "placing order",
         instrument="EUR_USD",
         oanda_api_token=OANDA.api_token,
-        url=f"https://api-fxpractice.oanda.com/v3/accounts/{OANDA.account_id}/orders",
+        url=f"https://broker.example/v3/accounts/{OANDA.account_id}/orders",
     )
 
     OANDA.assert_absent_from(stream.getvalue())
@@ -147,15 +147,28 @@ def test_stdlib_log_records_are_redacted() -> None:
     stream = io.StringIO()
     configure_logging("INFO", json=True, stream=stream)
 
-    logging.getLogger("httpx").info(
-        "HTTP Request: GET https://api-fxpractice.oanda.com/v3/accounts/%s/summary",
+    logging.getLogger("some.library").info(
+        "GET https://broker.example/v3/accounts/%s/summary?token=%s",
         OANDA.account_id,
+        OANDA.api_token,
     )
 
     OANDA.assert_absent_from(stream.getvalue())
     (record,) = json_lines(stream)
-    assert record["logger"] == "httpx"
+    assert record["logger"] == "some.library"
     assert REDACTED in record["event"]
+
+
+def test_http_client_loggers_are_quiet_below_warning() -> None:
+    stream = io.StringIO()
+    configure_logging("DEBUG", json=True, stream=stream)
+
+    for name in ("httpx", "httpcore"):
+        logging.getLogger(name).info("HTTP Request: GET https://broker.example/v3/accounts/x")
+        logging.getLogger(name).debug("connection details")
+
+    assert stream.getvalue() == ""
+    assert logging.getLogger("httpx").getEffectiveLevel() == logging.WARNING
 
 
 def test_stdlib_extras_are_kept_except_uvicorn_color_duplicates() -> None:

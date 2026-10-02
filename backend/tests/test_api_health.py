@@ -9,6 +9,7 @@ from pydantic import SecretStr
 from fxbot import __version__
 from fxbot.api.app import create_app
 from fxbot.config import Settings
+from fxbot.domain.enums import Mode
 from tests.fakes import FakeOandaCredentials
 
 ClientFactory = Callable[[Settings], AsyncClient]
@@ -26,7 +27,7 @@ def client_for() -> ClientFactory:
 @pytest.fixture
 def practice_settings(fake_oanda: FakeOandaCredentials) -> Settings:
     return Settings(
-        trading_mode="practice",
+        trading_mode=Mode.PRACTICE,
         oanda_account_id=SecretStr(fake_oanda.account_id),
         oanda_api_token=SecretStr(fake_oanda.api_token),
     )
@@ -43,13 +44,9 @@ async def test_health_reports_status_version_and_mode(client_for: ClientFactory)
 async def test_health_reports_live_mode(
     monkeypatch: pytest.MonkeyPatch, client_for: ClientFactory, fake_oanda: FakeOandaCredentials
 ) -> None:
-    monkeypatch.setenv("ALLOW_LIVE_TRADING", "true")
-    settings = Settings(
-        trading_mode="live",
-        live_trading_confirmed=True,
-        oanda_account_id=SecretStr(fake_oanda.account_id),
-        oanda_api_token=SecretStr(fake_oanda.api_token),
-    )
+    for name, value in fake_oanda.live_env().items():
+        monkeypatch.setenv(name, value)
+    settings = Settings()
 
     async with client_for(settings) as client:
         response = await client.get("/api/health")

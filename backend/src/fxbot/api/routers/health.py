@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from fxbot import __version__
 from fxbot.api.deps import SettingsDep
-from fxbot.config import TradingMode
+from fxbot.domain.enums import Mode
 
 router = APIRouter(tags=["system"])
 
@@ -15,7 +15,7 @@ router = APIRouter(tags=["system"])
 class HealthResponse(BaseModel):
     status: Literal["ok"] = "ok"
     version: str
-    mode: TradingMode
+    mode: Mode
 
 
 @router.get("/health")

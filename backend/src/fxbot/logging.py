@@ -140,8 +140,10 @@ def configure_logging(
     if json:
         renderer = structlog.processors.JSONRenderer()
     else:
+        # structlog needs colorama for colours on Windows; plain output there.
+        colors = stream.isatty() and sys.platform != "win32"
         renderer = structlog.dev.ConsoleRenderer(
-            colors=stream.isatty(), exception_formatter=structlog.dev.plain_traceback
+            colors=colors, exception_formatter=structlog.dev.plain_traceback
         )
     formatter = structlog.stdlib.ProcessorFormatter(
         foreign_pre_chain=shared_processors,
@@ -170,6 +172,11 @@ def configure_logging(
         uvicorn_logger = logging.getLogger(name)
         uvicorn_logger.handlers.clear()
         uvicorn_logger.propagate = True
+
+    # HTTP client internals log full request URLs (which carry the broker account id) at
+    # INFO/DEBUG. Keep them quiet at any application log level.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 
 def get_logger(name: str, **initial_values: Any) -> structlog.stdlib.BoundLogger:

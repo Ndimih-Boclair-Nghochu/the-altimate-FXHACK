@@ -12,10 +12,23 @@ class FakeOandaCredentials:
     account_id: str = "101-004-1234567-001"
     api_token: str = "0123456789abcdef0123456789abcdef-fedcba9876543210fedcba9876543210"
 
+    # A second canonical fake account (allow-listed in .gitleaks.toml), for mismatch tests.
+    other_account_id: str = "101-001-0000000-001"
+
     def env(self) -> dict[str, str]:
         return {
             "FXBOT_OANDA_ACCOUNT_ID": self.account_id,
             "FXBOT_OANDA_API_TOKEN": self.api_token,
+        }
+
+    def live_env(self) -> dict[str, str]:
+        """Every variable live trading needs."""
+        return {
+            "FXBOT_TRADING_MODE": "live",
+            "ALLOW_LIVE_TRADING": "true",
+            "FXBOT_LIVE_TRADING_CONFIRMED": "true",
+            "FXBOT_LIVE_CONFIRM_ACCOUNT_ID": self.account_id,
+            **self.env(),
         }
 
     def assert_absent_from(self, text: str) -> None:

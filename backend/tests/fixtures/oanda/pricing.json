@@ -1,0 +1,17 @@
+{
+  "prices": [
+    {
+      "type": "PRICE",
+      "status": "tradeable",
+      "tradeable": true,
+      "quoteHomeConversionFactors": {"negativeUnits": "0.89160730", "positiveUnits": "0.89150397"},
+      "asks": [{"price": "1.12170", "liquidity": 10000000}, {"price": "1.12172", "liquidity": 10000000}],
+      "closeoutBid": "1.12153",
+      "bids": [{"price": "1.12157", "liquidity": 10000000}, {"price": "1.12155", "liquidity": 10000000}],
+      "instrument": "EUR_USD",
+      "time": "2016-10-05T05:28:16.729643492Z",
+      "closeoutAsk": "1.12174"
+    }
+  ],
+  "time": "2016-10-05T05:28:17.000000000Z"
+}

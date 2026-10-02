@@ -1,0 +1,36 @@
+{
+  "orderCreateTransaction": {
+    "type": "MARKET_ORDER", "instrument": "EUR_USD", "units": "12000",
+    "timeInForce": "FOK", "positionFill": "DEFAULT", "reason": "CLIENT_ORDER",
+    "priceBound": "1.16400",
+    "stopLossOnFill": {"price": "1.16010", "timeInForce": "GTC"},
+    "clientExtensions": {"id": "afx-7f3c2a", "tag": "trend_breakout_h4"},
+    "id": "22", "userID": 5120019, "accountID": "101-004-1234567-001",
+    "batchID": "22", "requestID": "78475265757515465",
+    "time": "2018-06-27T09:36:12.964984863Z"
+  },
+  "orderFillTransaction": {
+    "type": "ORDER_FILL", "orderID": "22", "instrument": "EUR_USD", "units": "12000",
+    "price": "1.16377", "pl": "0.0000", "financing": "0.0000", "commission": "0.0000",
+    "accountBalance": "99999.9604",
+    "gainQuoteHomeConversionFactor": "1.36376", "lossQuoteHomeConversionFactor": "1.36394",
+    "guaranteedExecutionFee": "0.0000", "halfSpreadCost": "0.0089", "reason": "MARKET_ORDER",
+    "clientOrderID": "afx-7f3c2a",
+    "tradeOpened": {
+      "price": "1.16377", "tradeID": "23", "units": "12000",
+      "guaranteedExecutionFee": "0.0000", "halfSpreadCost": "0.0089",
+      "initialMarginRequired": "3.1742"
+    },
+    "fullPrice": {
+      "closeoutBid": "1.16349", "closeoutAsk": "1.16392",
+      "timestamp": "2018-06-27T09:36:07.712138542Z",
+      "bids": [{"price": "1.16364", "liquidity": "10000000"}],
+      "asks": [{"price": "1.16377", "liquidity": "10000000"}]
+    },
+    "id": "23", "userID": 5120019, "accountID": "101-004-1234567-001",
+    "batchID": "22", "requestID": "78475265757515465",
+    "time": "2018-06-27T09:36:12.964984863Z"
+  },
+  "relatedTransactionIDs": ["22", "23", "24"],
+  "lastTransactionID": "24"
+}

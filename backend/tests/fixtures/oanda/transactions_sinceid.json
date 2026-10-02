@@ -1,0 +1,8 @@
+{
+  "transactions": [
+    {"id": "2124", "time": "2016-10-28T15:11:58.023004583Z", "userID": 1435156, "accountID": "101-004-1234567-001", "batchID": "2124", "requestID": "24368149911764854", "type": "MARKET_ORDER", "reason": "CLIENT_ORDER", "timeInForce": "FOK", "instrument": "EUR_USD", "units": "100", "positionFill": "DEFAULT"},
+    {"id": "2125", "time": "2016-10-28T15:11:58.023004583Z", "userID": 1435156, "accountID": "101-004-1234567-001", "batchID": "2124", "type": "ORDER_FILL", "orderID": "2124", "instrument": "EUR_USD", "units": "100", "price": "1.09448", "reason": "MARKET_ORDER", "pl": "0.0000", "financing": "0.0000", "commission": "0.0000", "accountBalance": "33848.1208", "tradeOpened": {"tradeID": "2125", "units": "100", "price": "1.09448"}},
+    {"id": "2126", "time": "2016-10-29T21:00:00.000000000Z", "accountID": "101-004-1234567-001", "type": "DAILY_FINANCING", "financing": "-0.0120", "accountBalance": "33848.1088"}
+  ],
+  "lastTransactionID": "2126"
+}

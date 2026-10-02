@@ -1,0 +1,20 @@
+{
+  "trades": [
+    {
+      "financing": "0.0000", "openTime": "2016-10-28T14:27:19.011002322Z",
+      "price": "1.09448", "unrealizedPL": "-0.0933", "realizedPL": "0.0000",
+      "instrument": "EUR_USD", "state": "OPEN",
+      "initialUnits": "100", "currentUnits": "100", "id": "2313",
+      "clientExtensions": {"id": "afx-7f3c2a", "tag": "trend_breakout_h4"},
+      "stopLossOrder": {"id": "2314", "price": "1.09000", "state": "PENDING", "tradeID": "2313", "type": "STOP_LOSS"},
+      "takeProfitOrder": {"id": "2315", "price": "1.10500", "state": "PENDING", "tradeID": "2313", "type": "TAKE_PROFIT"}
+    },
+    {
+      "financing": "-0.0120", "openTime": "2016-10-28T15:00:00.000000000Z",
+      "price": "104.500", "unrealizedPL": "1.2000", "realizedPL": "0.0000",
+      "instrument": "USD_JPY", "state": "OPEN",
+      "initialUnits": "-500", "currentUnits": "-500", "id": "2318"
+    }
+  ],
+  "lastTransactionID": "2318"
+}
