@@ -17,6 +17,8 @@
 #   token:      0123456789abcdef0123456789abcdef-fedcba9876543210fedcba9876543210
 #               00000000000000000000000000000000-00000000000000000000000000000000
 #   account id: 101-004-1234567-001, 101-001-0000000-001 (any NNN-NNN-<zeros|1234567..>-NNN)
+#   MT5:        login 12345678 (or masked "***987"), passwords "***" or "<redacted>"
+#               (enforced in fixtures by the CI fixture guard; gitleaks cannot tell logins apart)
 
 title = "Altimate FX gitleaks config"
 minVersion = "v8.25.0"
@@ -55,6 +57,21 @@ secretGroup = 1
   regexTarget = "secret"
   regexes = [
     '''^\d{3}-\d{3}-(?:0{5,9}|1234567|12345678|123456789)-\d{3}$''',
+  ]
+
+[[rules]]
+id = "mt5-password-assignment"
+description = "Value assigned to an MT5 / MetaTrader password variable (master or investor)"
+# The default generic rule misses short passwords with symbols, e.g. FXBOT_MT5_PASSWORD=Vq7#mZ2pL9xR.
+regex = '''(?i)(?:mt5|metatrader)[a-z0-9_.-]{0,24}(?:password|passwd|pwd|pass)\b[\s'"]{0,3}(?:=|:|:=|=>)[\s'"]{0,5}([^\s'"]{6,64})'''
+secretGroup = 1
+keywords = ["mt5", "metatrader"]
+
+  [[rules.allowlists]]
+  description = "placeholders"
+  regexTarget = "secret"
+  regexes = [
+    '''(?i)^(?:<[^>]*>|\*+|x+|changeme|change-me|password|redacted|\$\{[^}]+\}|%[a-z_]+%)$''',
   ]
 
 [[rules]]

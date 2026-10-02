@@ -12,8 +12,8 @@ repository on 2026-10-02:
 
 | Step | Tool | Fails the build when |
 |---|---|---|
-| Secret scan | gitleaks 8.30.1 via `gitleaks/gitleaks-action` v3, using `.gitleaks.toml` (default rules + OANDA token, OANDA account ID, password hash) | Any finding in the pushed or PR commits; full history on `schedule` and `workflow_dispatch` |
-| Fixture guard | `grep` | `backend/tests/fixtures/` contains a token-shaped, account-ID-shaped or `Bearer` value that is not one of the canonical fakes. This compensates for the gitleaks path allowlist on fixtures. Prints file:line only, never the value |
+| Secret scan | gitleaks 8.30.1 via `gitleaks/gitleaks-action` v3, using `.gitleaks.toml` (default rules + OANDA token, OANDA account ID, MT5 password, password hash) | Any finding in the pushed or PR commits; full history on `schedule` and `workflow_dispatch` |
+| Fixture guard | `grep` | `backend/tests/fixtures/` contains a token-shaped, account-ID-shaped or `Bearer` value that is not one of the canonical fakes, an MT5 `"login"` other than `12345678` (or a masked one), or an MT5 password that is not `"***"`/`"<redacted>"`. This compensates for the gitleaks path allowlist on fixtures. Prints file:line only, never the value |
 | Python deps | `uv export` (lockfile, all groups and extras, with hashes) → `pip-audit` 2.10.1 | Any known vulnerability (PyPI advisory DB) |
 | JS deps | `npm audit --audit-level=high` (reads `package-lock.json`; no install needed) | Any high or critical advisory |
 
@@ -72,6 +72,10 @@ jobs:
           fake='0123456789abcdef0123456789abcdef-fedcba9876543210fedcba9876543210|0{32}-0{32}|[0-9]{3}-[0-9]{3}-(0{5,9}|1234567|12345678|123456789)-[0-9]{3}'
           hits=$(grep -rEnoI '\b[0-9a-fA-F]{32}-[0-9a-fA-F]{32}\b|\b[0-9]{3}-[0-9]{3}-[0-9]{5,9}-[0-9]{3}\b|[Bb]earer +[A-Za-z0-9._~+/-]{8,}' "$dir" \
             | grep -vE ":([Bb]earer +)?(${fake})\$" || true)
+          # MT5 recordings: logins must be the fake 12345678 (or masked), passwords empty or masked.
+          mt5=$(grep -rEnoI '"(login|password|investor_password)"[[:space:]]*:[[:space:]]*"?[^",}[:space:]]+' "$dir" \
+            | grep -vE ':"login"[[:space:]]*:[[:space:]]*"?(12345678|\*+[0-9]{0,3})$|:"(password|investor_password)"[[:space:]]*:[[:space:]]*"(\*+|<redacted>)$' || true)
+          hits=$(printf '%s\n%s\n' "$hits" "$mt5" | sed '/^$/d')
           if [ -n "$hits" ]; then
             echo "::error::Non-canonical token/account-shaped values in $dir (values hidden). Replace them with the fakes listed in .gitleaks.toml."
             printf '%s\n' "$hits" | cut -d: -f1,2 | sort -u

@@ -1,6 +1,6 @@
 # Security review checklist
 
-Used by the security reviewer at the end of stages 1, 5, 6 and 7 (`docs/SECURITY.md` §7). Every
+Used by the security reviewer at the end of stages 1, 1b, 5, 6 and 7 (`docs/SECURITY.md` §7). Every
 item maps to a requirement (SR-n) in [`docs/SECURITY.md`](../SECURITY.md). Commands run from the
 repository root with bash.
 
@@ -95,7 +95,9 @@ export FAKE_ACCT=101-004-1234567-001
   grep -rnIE '^\s*\w*(token|secret|password|passwd|api_key|account_id)\w*\s*:\s*(str|str \| None|Optional\[str\])\b' backend/src
   ```
 - [ ] **1-2 Secrets are unwrapped only at the point of use.** Expect: hits only in
-  `brokers/oanda/` (client construction) and, from Stage 5, `api/auth*`.
+  `brokers/oanda/client.py` (auth header, account path, compare), `config.py:secret_equals`
+  (constant-time compare), from Stage 1b the bridge's HMAC and `initialize` code, and from
+  Stage 5 `api/auth*`.
   ```sh
   grep -rnI 'get_secret_value' backend/src
   ```
@@ -205,6 +207,249 @@ export FAKE_ACCT=101-004-1234567-001
 - [ ] **1-20 SQL via ORM only** (SR-42). Expect: no hits.
   ```sh
   grep -rnIE '\btext\(\s*f["'"'"']|\bexecute\(\s*f["'"'"']|\.format\(.*\b(SELECT|INSERT|UPDATE|DELETE)\b' backend/src
+  ```
+
+**Stage 1 follow-up** (re-review of F1-1 to F1-5; tests are in `docs/security/stage1-findings.md`)
+
+- [ ] **1-21 Every fill is protected and reported** (SR-57, F1-1, F1-2). Expect:
+  - the suggested tests pass;
+  - every `FILLED` return path in `submit_order` goes through the protection check;
+  - the fail-safe catches `Exception`;
+  - no exception escapes `submit_order` after the POST except auth or account mismatch.
+  ```sh
+  grep -nE 'return (existing|result|await self\._resolve_unknown)|_ensure_stop|_protect|except ' backend/src/fxbot/brokers/oanda/adapter.py
+  (cd backend && uv run pytest -q -k 'protect or attach or unverif or resolved_after_timeout')
+  ```
+- [ ] **1-22 `ALLOW_LIVE_TRADING` comes from the environment only** (SR-10, F1-3). Expect: the
+  tests pass; the key is gone from `.env.example`; a `.env` containing it is ignored with a
+  warning (the last command prints `False`).
+  ```sh
+  grep -n 'ALLOW_LIVE_TRADING' backend/.env.example backend/src/fxbot/config.py
+  W=$(mktemp -d) && cd "$W" && printf 'ALLOW_LIVE_TRADING=true\n' > .env && \
+    "$REPO/backend/.venv/bin/python" -c "from fxbot.config import Settings; print(Settings().allow_live_trading)"; cd "$REPO"
+  ```
+- [ ] **1-23 Private data files on POSIX** (SR-45, F1-4). Expect: `-rw-------` for `fxbot.db`,
+  `-wal` and `-shm`.
+  ```sh
+  W=$(mktemp -d) && cd "$W" && "$REPO/backend/.venv/bin/python" -c "import asyncio; from fxbot.persistence.db import Database; d=Database('sqlite+aiosqlite:///$W/data/fxbot.db'); asyncio.run(d.create_all())" && ls -l data/; cd "$REPO"
+  ```
+- [ ] **1-24 No trading before the account check** (SR-7, F1-5). Expect: a test shows
+  `submit_order`, `close_trade` and `close_all` raise before `connect()`.
+
+---
+
+## Stage 1b — MT5 adapter, bridge and Windows VPS
+
+Code and tests run on Linux (CI, or locally with the fake `MetaTrader5` module). Host checks run in
+PowerShell on the VPS, against the **demo** account. Paths assume `backend/src/fxbot/brokers/mt5/`
+(ROADMAP stage 1b); adjust them to the real layout.
+
+```sh
+export MT5="backend/src/fxbot/brokers/mt5"
+```
+
+**Code and tests**
+
+- [ ] **1b-1 Loopback bind, Host and Origin checks** (SR-58). Expect:
+  - the default bind is `127.0.0.1`, and any other address is refused unless the explicit tunnel
+    mode is configured;
+  - `Host` is checked against `127.0.0.1:<port>` and `localhost:<port>`;
+  - any `Origin` header gets 403;
+  - no CORS middleware.
+  ```sh
+  grep -rnIE '0\.0\.0\.0|127\.0\.0\.1|bind|host' $MT5/bridge
+  grep -rnIE 'Origin|Host|CORSMiddleware|TrustedHost' $MT5/bridge
+  ```
+- [ ] **1b-2 Signed requests with a replay window** (SR-59). Expect:
+  - `hmac.compare_digest`, a ±30 s timestamp window, a nonce cache, and the body hash in the
+    signed string;
+  - the secret is a `SecretStr`;
+  - tests for unauthenticated, wrong-signature, expired, replayed and tampered-body requests.
+  ```sh
+  grep -rnIE 'compare_digest|hmac\.new|nonce|timestamp|SecretStr' $MT5/bridge
+  (cd backend && uv run pytest -q tests/brokers/mt5/test_bridge_security.py)
+  ```
+- [ ] **1b-3 No generic dispatch** (SR-61, SR-71). Expect: no hits, apart from the single
+  configured-module import of `MetaTrader5`.
+  ```sh
+  grep -rnIE 'getattr\(\s*(mt5|self\._mt5)|rpyc|mt5linux|metaapi|\beval\(|\bexec\(|pickle|import_module\(' $MT5 backend/pyproject.toml
+  ```
+- [ ] **1b-4 Endpoint allowlist** (SR-61). Expect: the route table matches research 08 §B.4
+  exactly, and an unknown path returns 404. Print the routes from the bridge app factory and
+  compare.
+  ```sh
+  grep -rnIE '@(app|router)\.(get|post|put|patch|delete)\(|add_route|Route\(' $MT5/bridge
+  ```
+- [ ] **1b-5 `order/send` validation** (SR-61). Expect a test, each returning 422 before any MT5
+  call, for:
+  - a PENDING, MODIFY, REMOVE or CLOSE_BY action;
+  - an opening DEAL without `sl`, or with `sl` on the wrong side;
+  - SLTP with `sl=0`, or an SLTP that widens the stop;
+  - `magic` outside our range;
+  - a `comment` not matching `^afx:[A-Z2-7]{12}$`;
+  - `volume` above `FXBOT_MT5_MAX_LOTS` or off the step;
+  - an unmapped symbol;
+  - a `position` ticket without our magic;
+  - an unknown field;
+  - a NaN.
+  ```sh
+  (cd backend && uv run pytest -q tests/brokers/mt5 -k 'reject or invalid or refuse or validation')
+  ```
+- [ ] **1b-6 Account binding** (SR-60, SR-10). Expect tests for:
+  - `practice` on REAL, `live` on DEMO, and CONTEST in any mode;
+  - a login or server mismatch;
+  - a reconnect to a different login;
+  - netting in `live`;
+  - `trade_expert` false, and `tradeapi_disabled` true;
+  - live without an environment-only `ALLOW_LIVE_TRADING`;
+  - `FXBOT_LIVE_CONFIRM_ACCOUNT_ID` not equal to the MT5 login.
+
+  The check runs before every `order_send`.
+  ```sh
+  grep -rnIE 'trade_mode|margin_mode|fifo_close|trade_expert|tradeapi_disabled|login|server' $MT5
+  (cd backend && uv run pytest -q tests/brokers/test_factory.py tests/brokers/mt5 -k 'account or mode or login or interlock')
+  ```
+- [ ] **1b-7 Idempotency and ambiguous outcomes** (SR-62). Expect tests for:
+  - a repeated key returns the stored result;
+  - a key in flight gets 409;
+  - the fake's "10012 after creating the position" case is found by `magic` + comment, with no
+    second deal;
+  - a comment rewritten by the broker is found by the `magic` + symbol + side + volume + time
+    fallback;
+  - retries only for 10004, 10020 and 10030.
+- [ ] **1b-8 Protection after fill** (SR-57). Expect tests for:
+  - the fake strips `sl` on DEAL, and SLTP attaches it;
+  - SLTP fails twice, and the position is closed;
+  - a close failure is reported as `UNPROTECTED`;
+  - reconciliation finds our position with `sl == 0` and sets the SL or closes it.
+- [ ] **1b-9 One worker thread, timeouts, rate** (SR-63). Expect: a single-thread executor;
+  per-call timeouts; ≤ 1 trading request per second; `tests/brokers/mt5/test_threading.py` passes.
+  ```sh
+  grep -rnIE 'ThreadPoolExecutor|max_workers|run_in_executor|timeout' $MT5
+  ```
+- [ ] **1b-10 Secrets and logs** (SR-64, SR-65). Expect:
+  - the MT5 password and the bridge secret are `SecretStr`, and are not settings of the backend
+    process (bridge only);
+  - the login is masked to its last 3 digits;
+  - the sentinel tests are extended and pass;
+  - no `initialize(...password=...)` unless the SR-65 fallback is configured.
+  ```sh
+  grep -rnIE 'password|bridge_secret|login' $MT5 backend/src/fxbot/config.py
+  grep -rnIE 'initialize\(' $MT5
+  (cd backend && uv run pytest -q tests/test_secrets.py)
+  ```
+- [ ] **1b-11 Package and fixtures** (SR-71, SR-47). Expect:
+  - `MetaTrader5` is an optional extra with a `sys_platform == 'win32'` marker, locked with hashes,
+    and present in the `pip-audit` export;
+  - the fixture guard passes;
+  - MT5 fixtures use login `12345678` (the last command prints nothing).
+  ```sh
+  grep -n -i 'metatrader' backend/pyproject.toml && grep -c -i 'name = "metatrader5"' backend/uv.lock
+  grep -i metatrader /tmp/req-audit.txt       # after 0-5
+  grep -rnE '"login"' backend/tests/fixtures/mt5 | grep -v 12345678
+  ```
+- [ ] **1b-12 Setup guide covers the operator rules** (SR-65 – SR-70). Expect `docs/MT5_SETUP.md`
+  to cover:
+  - investor vs master password;
+  - the non-admin user, and RDP not public;
+  - firewall block rules;
+  - the `icacls` command;
+  - no secrets in service definitions;
+  - a tunnel with no `funnel`;
+  - verifying the broker through the regulator, and the withdrawal test;
+  - the red flags.
+  ```sh
+  grep -niE 'investor|non-admin|standard user|RDP|New-NetFirewallRule|icacls|AppEnvironmentExtra|funnel|regulator|withdraw|red flag' docs/MT5_SETUP.md
+  ```
+
+**Black-box against the bridge** (on the VPS against the demo account, or locally with the
+bridge on the fake module). Use `curl.exe` for unsigned calls; it ships with Windows Server
+2019 and later.
+
+- [ ] **1b-13 Rejections.** Expect `401`, `401`, `400`/`421`, `403`, `404` and `413`, in that
+  order.
+
+```powershell
+$B = "http://127.0.0.1:<bridge-port>"
+curl.exe -s -o NUL -w "%{http_code}`n" "$B/account"                                   # no auth
+curl.exe -s -o NUL -w "%{http_code}`n" -H "X-AFX-Signature: 00" "$B/account"           # bad signature
+curl.exe -s -o NUL -w "%{http_code}`n" -H "Host: evil.example" "$B/health"             # wrong Host
+curl.exe -s -o NUL -w "%{http_code}`n" -H "Origin: http://evil.example" "$B/health"    # browser origin
+curl.exe -s -o NUL -w "%{http_code}`n" "$B/eval"                                       # unknown path
+curl.exe -s -o NUL -w "%{http_code}`n" -X POST --data-binary "@C:\Windows\explorer.exe" "$B/order/send"   # oversized
+```
+
+- [ ] **1b-14 Replay.** Capture one signed `GET /account` made with the bridge's own client (debug
+  hook or test harness). Expect: resending the identical headers and body after the first
+  response returns 401, and so does resending after 31 s.
+- [ ] **1b-15 Interlock drills on the demo.** Each refusal returns 409 and logs `CRITICAL`, and the
+  backend pauses entries. Expect:
+  - a different `FXBOT_MT5_LOGIN` → trading refused;
+  - `FXBOT_TRADING_MODE=live` on the demo → refused at start;
+  - Algo Trading switched off in the terminal → health degraded, entries paused;
+  - the terminal closed and restarted → reconnect, SR-60 checks, reconciliation, then entries
+    resume.
+
+**Windows VPS host checks** (PowerShell; SR-67 – SR-69)
+
+- [ ] **1b-16 Listeners are loopback only.** Expect `127.0.0.1` for both ports.
+  ```powershell
+  Get-NetTCPConnection -State Listen | Where-Object LocalPort -in 8000,<bridge-port> | Select-Object LocalAddress,LocalPort,OwningProcess
+  ```
+- [ ] **1b-17 Firewall.** Expect:
+  - every profile is `Enabled=True` with `DefaultInboundAction=Block`;
+  - the block rules for 8000 and the bridge port exist;
+  - there are no allow rules for `python.exe`;
+  - Remote Desktop allow rules are restricted to the VPN or allowlisted addresses, or disabled.
+  ```powershell
+  Get-NetFirewallProfile | Select-Object Name,Enabled,DefaultInboundAction
+  Get-NetFirewallRule -DisplayName 'fxbot*' | Select-Object DisplayName,Direction,Action,Enabled
+  Get-NetFirewallApplicationFilter | Where-Object Program -like '*python*' | Get-NetFirewallRule | Where-Object Action -eq Allow
+  Get-NetFirewallRule -DisplayGroup 'Remote Desktop' | Where-Object Enabled -eq True | Get-NetFirewallAddressFilter
+  ```
+- [ ] **1b-18 RDP is not public.** From a machine **outside** the VPN, expect a failure (or success
+  only from the allowlisted IP). The `nc` command can be replaced with
+  `Test-NetConnection <vps-public-ip> -Port 3389`.
+  ```sh
+  nc -zv -w3 <vps-public-ip> 3389
+  ```
+- [ ] **1b-19 Non-admin service user, and no secrets in service definitions.** Expect:
+  - `StartName` is the dedicated user, who is not in Administrators;
+  - `PathName`, the NSSM environment, scheduled-task arguments and machine variables contain no
+    token, password or secret. `ALLOW_LIVE_TRADING` is allowed.
+  ```powershell
+  Get-CimInstance Win32_Service | Where-Object Name -like 'fxbot*' | Select-Object Name,StartName,PathName
+  Get-LocalGroupMember Administrators
+  reg query "HKLM\SYSTEM\CurrentControlSet\Services\fxbot-backend\Parameters" /v AppEnvironmentExtra
+  Get-ScheduledTask | Where-Object TaskName -like 'fxbot*' | ForEach-Object { $_.Actions }
+  [Environment]::GetEnvironmentVariables('Machine').Keys | Select-String 'FXBOT|MT5|OANDA'
+  ```
+- [ ] **1b-20 Folder ACLs** (SR-68, F1-4). Expect: only the service user, SYSTEM and
+  Administrators; no `Everyone`, `BUILTIN\Users` or `Authenticated Users` anywhere below (the
+  second command prints nothing).
+  ```powershell
+  icacls C:\fxbot
+  icacls C:\fxbot /t /c | Select-String 'Everyone|BUILTIN\\Users|Authenticated Users'
+  ```
+- [ ] **1b-21 Updates, antivirus, time, no remote tools.** Expect: recent patches; Defender
+  real-time protection on; time synced; no remote-desktop tools.
+  ```powershell
+  Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 3
+  Get-MpComputerStatus | Select-Object AMServiceEnabled,RealTimeProtectionEnabled
+  w32tm /query /status
+  Get-Package | Where-Object Name -match 'AnyDesk|TeamViewer|RustDesk|UltraViewer'
+  ```
+- [ ] **1b-22 Terminal hygiene** (SR-66). Expect: no third-party `.ex5` or `.dll` outside the
+  terminal's shipped examples (the command prints nothing); "Allow DLL imports" and "Allow
+  WebRequest" off (checked by hand in Tools → Options → Expert Advisors).
+  ```powershell
+  Get-ChildItem C:\fxbot\mt5\MQL5\Experts,C:\fxbot\mt5\MQL5\Indicators,C:\fxbot\mt5\MQL5\Scripts,C:\fxbot\mt5\MQL5\Libraries -Recurse -File -Include *.ex5,*.dll | Where-Object FullName -notmatch '\\Examples\\|\\Free Robots\\'
+  ```
+- [ ] **1b-23 Dashboard tunnel** (SR-69). Expect: Tailscale serves only `127.0.0.1:8000` and
+  funnel is off; or OpenSSH has `PasswordAuthentication no`. The bridge port is never forwarded.
+  ```powershell
+  tailscale serve status; tailscale funnel status
+  Select-String -Path C:\ProgramData\ssh\sshd_config -Pattern 'PasswordAuthentication|PubkeyAuthentication'
   ```
 
 ---
