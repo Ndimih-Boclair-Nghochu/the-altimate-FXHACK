@@ -10,6 +10,9 @@ source is marked **UNVERIFIED**.
 
 ## 0. Sources and how much to trust them
 
+> Account IDs in the example payloads below were replaced with the project's canonical fake
+> IDs (see `.gitleaks.toml`). Everything else in the payloads is as recorded in the source.
+
 | Tag | Source | What it gives us | Trust |
 |---|---|---|---|
 | [SPEC] | OANDA's official OpenAPI 2.0 spec, `oanda/v20-openapi`, `json/v20.json`, version **3.0.25** (last commit 2018-09-28, `70324cf`). https://github.com/oanda/v20-openapi | Every path, parameter, response schema, enum | High for shapes. It is from 2018, so fields added later are missing (see §11). |
@@ -165,7 +168,7 @@ stream (all instruments in one request) and **one** transaction stream. Reconnec
 
 ## 6. Endpoints
 
-All examples: `{acct}` = account ID like `101-004-1435156-001` (format
+All examples: `{acct}` = account ID like `101-004-1234567-001` (format
 `{siteID}-{divisionID}-{userID}-{accountNumber}` [SPEC]).
 
 ### 6.1 List accounts — `GET /v3/accounts`
@@ -175,8 +178,8 @@ Response 200 ([SPEC] `accounts: [AccountProperties]`, `AccountProperties = {id, 
 ```json
 {
   "accounts": [
-    { "id": "101-004-1435156-002", "tags": [] },
-    { "id": "101-004-1435156-001", "tags": [] }
+    { "id": "101-004-1234567-002", "tags": [] },
+    { "id": "101-004-1234567-001", "tags": [] }
   ]
 }
 ```
@@ -200,7 +203,7 @@ Response 200: `{ "account": AccountSummary, "lastTransactionID": "..." }` ([SPEC
     "marginCloseoutMarginUsed": "10581.5000",
     "marginCloseoutPositionValue": "211630.0000",
     "openTradeCount": 2,
-    "id": "101-004-1435156-001",
+    "id": "101-004-1234567-001",
     "openPositionCount": 1,
     "marginCloseoutPercent": "0.14923",
     "marginCallMarginUsed": "10581.5000",
@@ -510,7 +513,7 @@ response ([NB1], 2018-06-27):
   "orderCreateTransaction": {
     "type": "MARKET_ORDER", "instrument": "EUR_USD", "units": "100",
     "timeInForce": "FOK", "positionFill": "DEFAULT", "reason": "CLIENT_ORDER",
-    "id": "22", "userID": 5120019, "accountID": "101-003-5120019-001",
+    "id": "22", "userID": 5120019, "accountID": "101-003-1234567-001",
     "batchID": "22", "requestID": "78475265757515465",
     "time": "2018-06-27T09:36:12.964984863Z"
   },
@@ -531,7 +534,7 @@ response ([NB1], 2018-06-27):
       "bids": [{ "price": "1.16364", "liquidity": "10000000" }],
       "asks": [{ "price": "1.16377", "liquidity": "10000000" }]
     },
-    "id": "23", "userID": 5120019, "accountID": "101-003-5120019-001",
+    "id": "23", "userID": 5120019, "accountID": "101-003-1234567-001",
     "batchID": "22", "requestID": "78475265757515465",
     "time": "2018-06-27T09:36:12.964984863Z"
   },
@@ -596,12 +599,12 @@ response, weekend, on a trade-close market order ([NB2], 2017-01-28):
 {
   "lastTransactionID": "65",
   "orderCancelTransaction": {
-    "accountID": "101-003-5120068-001", "batchID": "64", "id": "65", "orderID": "64",
+    "accountID": "101-003-12345678-001", "batchID": "64", "id": "65", "orderID": "64",
     "reason": "MARKET_HALTED", "time": "2017-01-28T13:31:38.732264064Z",
     "type": "ORDER_CANCEL", "userID": 5120068
   },
   "orderCreateTransaction": {
-    "accountID": "101-003-5120068-001", "batchID": "64", "id": "64",
+    "accountID": "101-003-12345678-001", "batchID": "64", "id": "64",
     "instrument": "NZD_USD", "positionFill": "REDUCE_ONLY", "reason": "TRADE_CLOSE",
     "time": "2017-01-28T13:31:38.732264064Z", "timeInForce": "FOK",
     "tradeClose": { "tradeID": "35", "units": "ALL" },
@@ -739,14 +742,14 @@ orderCancelTransaction?, relatedTransactionIDs, lastTransactionID}`. 400/404
     "reason": "MARKET_ORDER_TRADE_CLOSE",
     "tradesClosed": [ { "units": "-100", "financing": "0.0000", "realizedPL": "-0.1455", "tradeID": "2313" } ],
     "time": "2016-10-28T15:11:58.023004583Z", "units": "-100", "type": "ORDER_FILL",
-    "id": "2317", "pl": "-0.1455", "accountID": "101-004-1435156-001"
+    "id": "2317", "pl": "-0.1455", "accountID": "101-004-1234567-001"
   },
   "orderCreateTransaction": {
     "timeInForce": "FOK", "positionFill": "REDUCE_ONLY", "userID": 1435156, "batchID": "2316",
     "instrument": "EUR_USD", "reason": "TRADE_CLOSE",
     "tradeClose": { "units": "100", "tradeID": "2313" },
     "time": "2016-10-28T15:11:58.023004583Z", "units": "-100", "type": "MARKET_ORDER",
-    "id": "2316", "accountID": "101-004-1435156-001"
+    "id": "2316", "accountID": "101-004-1234567-001"
   },
   "relatedTransactionIDs": ["2316", "2317"],
   "lastTransactionID": "2317"
@@ -792,20 +795,20 @@ The fixture's `url` says `/close`, which is a typo in the fixture. The body/resp
     "tradeID": "2323", "price": "1.10000", "userID": 1435156, "batchID": "2325",
     "reason": "REPLACEMENT", "time": "2016-10-28T21:00:19.978476830Z",
     "cancellingTransactionID": "2326", "type": "STOP_LOSS_ORDER", "id": "2327",
-    "accountID": "101-004-1435156-001"
+    "accountID": "101-004-1234567-001"
   },
   "takeProfitOrderTransaction": {
     "timeInForce": "GTC", "triggerCondition": "TRIGGER_DEFAULT", "tradeID": "2323",
     "price": "1.05000", "userID": 1435156, "batchID": "2325", "reason": "CLIENT_ORDER",
     "time": "2016-10-28T21:00:19.978476830Z", "type": "TAKE_PROFIT_ORDER", "id": "2325",
-    "accountID": "101-004-1435156-001"
+    "accountID": "101-004-1234567-001"
   },
   "relatedTransactionIDs": ["2325", "2326", "2327"],
   "lastTransactionID": "2327",
   "stopLossOrderCancelTransaction": {
     "orderID": "2324", "replacedByOrderID": "2327", "userID": 1435156, "batchID": "2325",
     "reason": "CLIENT_REQUEST_REPLACED", "time": "2016-10-28T21:00:19.978476830Z",
-    "type": "ORDER_CANCEL", "id": "2326", "accountID": "101-004-1435156-001"
+    "type": "ORDER_CANCEL", "id": "2326", "accountID": "101-004-1234567-001"
   }
 }
 ```
@@ -865,7 +868,7 @@ Recorded stream lines ([AV20], UNIX time):
 
 ```json
 {"type": "HEARTBEAT", "lastTransactionID": "16388", "time": "1514852380.912339327"}
-{"id": "16389", "time": "1514852381.353432710", "userID": 6557245, "accountID": "101-011-6557245-001", "batchID": "16389", "requestID": "24368149911764854", "type": "MARKET_ORDER", "reason": "CLIENT_ORDER", "timeInForce": "FOK", "instrument": "AUD_USD", "units": "1.0", "positionFill": "DEFAULT"}
+{"id": "16389", "time": "1514852381.353432710", "userID": 6557245, "accountID": "101-011-1234567-001", "batchID": "16389", "requestID": "24368149911764854", "type": "MARKET_ORDER", "reason": "CLIENT_ORDER", "timeInForce": "FOK", "instrument": "AUD_USD", "units": "1.0", "positionFill": "DEFAULT"}
 ```
 
 `TransactionType` enum ([SPEC]) includes `MARKET_ORDER`, `MARKET_ORDER_REJECT`,

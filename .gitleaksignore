@@ -1,0 +1,17 @@
+# Findings in history that were remediated in a later commit. Public example account
+# IDs from OANDA SDK fixtures, committed in a research draft and replaced with canonical
+# fakes. Fingerprint format: commit:file:rule:line
+21797218fded5efac900ecd3b526dcb0cd8196ee:docs/research/02-oanda-v20-api-spec.md:oanda-account-id:168
+21797218fded5efac900ecd3b526dcb0cd8196ee:docs/research/02-oanda-v20-api-spec.md:oanda-account-id:178
+21797218fded5efac900ecd3b526dcb0cd8196ee:docs/research/02-oanda-v20-api-spec.md:oanda-account-id:179
+21797218fded5efac900ecd3b526dcb0cd8196ee:docs/research/02-oanda-v20-api-spec.md:oanda-account-id:203
+21797218fded5efac900ecd3b526dcb0cd8196ee:docs/research/02-oanda-v20-api-spec.md:oanda-account-id:513
+21797218fded5efac900ecd3b526dcb0cd8196ee:docs/research/02-oanda-v20-api-spec.md:oanda-account-id:534
+21797218fded5efac900ecd3b526dcb0cd8196ee:docs/research/02-oanda-v20-api-spec.md:oanda-account-id:599
+21797218fded5efac900ecd3b526dcb0cd8196ee:docs/research/02-oanda-v20-api-spec.md:oanda-account-id:604
+21797218fded5efac900ecd3b526dcb0cd8196ee:docs/research/02-oanda-v20-api-spec.md:oanda-account-id:742
+21797218fded5efac900ecd3b526dcb0cd8196ee:docs/research/02-oanda-v20-api-spec.md:oanda-account-id:749
+21797218fded5efac900ecd3b526dcb0cd8196ee:docs/research/02-oanda-v20-api-spec.md:oanda-account-id:795
+21797218fded5efac900ecd3b526dcb0cd8196ee:docs/research/02-oanda-v20-api-spec.md:oanda-account-id:801
+21797218fded5efac900ecd3b526dcb0cd8196ee:docs/research/02-oanda-v20-api-spec.md:oanda-account-id:808
+21797218fded5efac900ecd3b526dcb0cd8196ee:docs/research/02-oanda-v20-api-spec.md:oanda-account-id:868
